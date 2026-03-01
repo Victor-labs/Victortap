@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Victor Coin"/>
+<meta name="theme-color" content="#FFD60A"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<title>Victor Coin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@400;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<!-- CRITICAL: doLogin inline — zero dependencies, works even if other scripts fail -->
+<script>
+function doLogin() {
+  var n = document.getElementById('lname')  ? document.getElementById('lname').value.trim()  : '';
+  var e = document.getElementById('lemail') ? document.getElementById('lemail').value.trim() : '';
+
+  // Only name is required. Email is OPTIONAL — anonymous users leave it blank.
+  if (!n) { alert('Please enter your name.'); return; }
+  if (e && e.indexOf('@') === -1) { alert('Please enter a valid email or leave blank for anonymous play.'); return; }
+
+  // Save to localStorage directly — no dependency on G or sv()
+  try {
+    var saved = localStorage.getItem('vcg_v10');
+    var data  = saved ? JSON.parse(saved) : {};
+    data.name   = data.name  || n;
+    if (e) data.email = data.email || e;
+    data.logins = (data.logins || 0) + 1;
+    localStorage.setItem('vcg_v10', JSON.stringify(data));
+  } catch(x) {}
+
+  // Hide login, show app — cssText with !important beats any CSS rule
+  var lp  = document.getElementById('lp');
+  var app = document.getElementById('app');
+  if (lp)  lp.style.cssText = 'display:none!important;visibility:hidden!important;';
+  if (app) { app.style.display = 'flex'; app.style.opacity = '1'; }
+
+  // Init game safely after short delay
+  setTimeout(function() {
+    try { if (typeof G !== 'undefined') { if (!G.name) G.name = n; if (!G.email && e) G.email = e; } } catch(x) {}
+    try { if (typeof initGame     === 'function') initGame();     } catch(x) { console.warn('initGame:', x); }
+    try { if (typeof initFirebase === 'function') initFirebase(); } catch(x) {}
+    try { if (typeof sv           === 'function') sv();           } catch(x) {}
+    try { if (typeof window._tryFbLoad === 'function') window._tryFbLoad(); } catch(x) {}
+  }, 150);
+}
+</script>
+
+
+<canvas id="bgC"></canvas>
+
+<!-- ===============================
+     LOGIN PAGE — Hollow Knight Style
+=============================== -->
+<div id="lp">
+  <canvas id="loginCanvas"></canvas>
+
+  <!-- Vignette & atmosphere layers -->
+  <div class="lvig"></div>
+  <div class="lglow"></div>
+  <div class="lglow2"></div>
+
+  <!-- Main login content -->
+  <div class="lwrap">
+
+    <!-- Title -->
+    <div class="ltitle-wrap">
+      <div class="lorn">❧</div>
+      <div class="ltitle">VICTOR</div>
+      <div class="ltitle2">COIN</div>
+      <div class="lorn lorn-bot">━━◆━━</div>
+      <div class="lsub">TAP · MINE · EXPLORE · DOMINATE</div>
+    </div>
+
+    <!-- Ornamental divider -->
+    <div class="ldeco">
+      <div class="ldeco-line"></div>
+      <div class="ldeco-gem">◈</div>
+      <div class="ldeco-line"></div>
+    </div>
+
+    <!-- Login card -->
+    <div class="lcard">
+      <div class="lcard-glow"></div>
+      <div class="lcard-inner">
+        <div class="lcard-title">ENTER THE REALM</div>
+        <input class="linp" id="lname"  placeholder="Your Name"      type="text"  autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('lemail').focus()"/>
+        <input class="linp" id="lemail" placeholder="Email (optional — leave blank for anonymous)"  type="text" inputmode="email" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button class="lbtn" onclick="doLogin()">
+          <span class="lbtn-orn">❖</span>
+          <span class="lbtn-txt">BEGIN JOURNEY</span>
+          <span class="lbtn-orn">❖</span>
+        </button>
+        <div class="lcopy">Victor_vk · All progress saved locally</div>
+      </div>
+    </div>
+
+  </div><!-- /lwrap -->
+</div><!-- /lp -->
+
+<!-- ===============================
+     MAIN APP
+=============================== -->
+<div id="app" style="display:none;">
+  <nav>
+    <button class="ntog" onclick="togSb()">☰</button>
+    <div id="ntitle">⚡ VICTOR COIN</div>
+    <div class="nctrs">
+      <div class="nc v" id="nvk">0 VK</div>
+      <div class="nc d" id="ndia">0 💎</div>
+    </div>
+  </nav>
+  <div id="body">
+    <div id="sbov" onclick="closeSb()"></div>
+    <div id="sb">
+      <div class="sbtop"><div class="sbico">⚡</div><div class="sbtxt">VICTOR COIN</div></div>
+      <div class="sbgl"></div>
+
+      <!-- EXPLORE — top -->
+      <div class="sbs">EXPLORE</div>
+      <div class="si" id="si-explore" onclick="openExplore();closeSb();" style="background:rgba(90,200,250,0.07);border:1px solid rgba(90,200,250,0.15);margin-bottom:4px;">
+        <span class="sii">🗺️</span><span class="sil" style="color:var(--teal);font-weight:700;">Explore</span>
+        <span style="font-size:0.55rem;background:var(--teal);color:#000;padding:2px 6px;border-radius:10px;font-weight:800;letter-spacing:0.3px;">NEW</span>
+      </div>
+      <hr class="sbdiv"/>
+
+      <div class="sbs">MAIN</div>
+      <div class="si on" id="si-game"     onclick="go('game',this)"><span class="sii">🪙</span><span class="sil">Game</span></div>
+      <div class="si"    id="si-shop"     onclick="go('shop',this)"><span class="sii">🛒</span><span class="sil">Shop</span></div>
+      <div class="si"    id="si-factory"  onclick="go('factory',this)"><span class="sii">🏭</span><span class="sil">Factory</span></div>
+      <div class="si"    id="si-diamonds" onclick="go('diamonds',this)"><span class="sii">💎</span><span class="sil">Diamonds</span></div>
+      <div class="si"    id="si-daily"    onclick="go('daily',this)"><span class="sii">🎁</span><span class="sil">Daily Reward</span></div>
+      <div class="si"    id="si-miner"    onclick="go('miner',this)"><span class="sii">🤖</span><span class="sil">Auto Miner</span></div>
+      <hr class="sbdiv"/>
+
+      <div class="sbs">POWER-UPS</div>
+      <div class="si boo"  id="si-boosts" onclick="go('boosts',this)"><span class="sii">⚡</span><span class="sil">Boosts</span></div>
+      <div class="si enig" id="si-enigma" onclick="go('enigma',this)"><span class="sii">🎭</span><span class="sil">Enigma</span></div>
+      <hr class="sbdiv"/>
+
+      <div class="si" id="si-gamehub" onclick="go('gamehub',this);renderGameHub();"><span class="sii">🎲</span><span class="sil">Game</span></div>
+      <hr class="sbdiv"/>
+
+      <div class="sbs">PROGRESS</div>
+      <div class="si" id="si-ach"     onclick="go('ach',this)"><span class="sii">🏅</span><span class="sil">Achievements</span><span class="sbbadge" id="achBadge">0/40</span></div>
+      <div class="si" id="si-ranks"   onclick="go('ranks',this)"><span class="sii">🏆</span><span class="sil">Ranks</span></div>
+      <div class="si" id="si-mall" onclick="go('mall',this)"><span class="sii">🏗️</span><span class="sil">Victor Build</span></div>
+      <div class="si" id="si-stake" onclick="go('stake',this)"><span class="sii">📈</span><span class="sil">Stake</span></div>
+      <hr class="sbdiv"/>
+
+      <div class="sbs">SOCIAL</div>
+      <div class="si" id="si-social" onclick="openSocial();closeSb();" style="background:rgba(191,90,242,0.07);border:1px solid rgba(191,90,242,0.18);margin-bottom:4px;position:relative;">
+        <span class="sii">🌐</span><span class="sil" style="color:var(--purple2);font-weight:700;">Social</span>
+        <span id="notifBadge" style="position:absolute;top:6px;right:10px;background:var(--red);color:#fff;border-radius:50%;width:16px;height:16px;font-size:0.5rem;font-weight:800;display:none;align-items:center;justify-content:center;border:2px solid var(--bg);"></span>
+      </div>
+      <hr class="sbdiv"/>
+      <div class="sbs">ACCOUNT</div>
+      <div class="si" id="si-player"  onclick="go('player',this)"><span class="sii">👤</span><span class="sil">Player Info</span></div>
+      <div class="si" id="si-settings" onclick="openSettings();closeSb();"><span class="sii">⚙️</span><span class="sil">Settings</span></div>
+      <div class="si" id="si-servers" onclick="go('servers',this);renderServersPage()"><span class="sii">🌐</span><span class="sil">Victor Servers</span></div>
+      <div class="si" id="si-about"   onclick="go('about',this)"><span class="sii">ℹ️</span><span class="sil">About</span></div>
+      <div class="si" id="si-contact" onclick="go('contact',this)"><span class="sii">📞</span><span class="sil">Contact</span></div>
+      <div class="sbfoot">Victor_vk © 2024<br/>All Rights Reserved</div>
+    </div>
+
+    <div id="con">
+
+<!-- GAME -->
+<div class="sec on" id="pg-game">
+  <div class="cwrap">
+    <div class="cstats">
+      <div class="csb"><div class="csv" id="cd">0</div><div class="csl">VK Coins</div></div>
+      <div class="csb"><div class="csv d" id="dd">0</div><div class="csl">💎 Diamonds</div></div>
+    </div>
+    <div class="cout">
+      <div class="chalo"></div><div class="cr2"></div><div class="cr1"></div>
+      <button class="cbtn" id="cbtn" onclick="tap(event)">
+        <span class="ci"><span class="cb">🪙</span>VICTOR COIN</span>
+      </button>
+    </div>
+    <div class="arb" id="arb">⚡ +0 VK/s</div>
+    <div class="th">TAP TO EARN VK</div>
+  </div>
+  <div class="sbar">
+    <div class="sc"><div class="sv tg" id="tapD">0</div><div class="sl">Taps</div></div>
+    <div class="sc"><div class="sv" id="loginD">0</div><div class="sl">Logins</div></div>
+    <div class="sc"><div class="sv td" id="mineD">0</div><div class="sl">Mined 💎</div></div>
+  </div>
+  <div class="g gg">
+    <div class="rbw"><h3 style="margin:0;">🏅 Rank</h3><span class="pill" id="rkbadge">Newbie</span></div>
+    <div style="font-size:.96rem;font-weight:700;margin-top:6px;" id="rkname">🌱 Newbie</div>
+    <div class="rp2" style="margin-top:8px;"><div class="rpf" id="rkprog" style="width:0%"></div></div>
+    <div style="font-size:.6rem;color:var(--text3);margin-top:4px;" id="rknext"></div>
+  </div>
+  <div class="g" id="buffCard" style="display:none;">
+    <h3 style="margin-bottom:7px;">🔥 Active Power-ups</h3>
+    <div id="buffList" style="font-size:.7rem;"></div>
+  </div>
+</div>
+
+<!-- SHOP -->
+<div class="sec" id="pg-shop">
+  <h2>🛒 SHOP</h2>
+  <p class="sd">Auto-tappers earn VK/s while this tab is active. Prices are steep — grind hard.</p>
+  <div class="tier">⭐ Beginner</div>
+  <div class="sgrid">
+    <div class="shc" id="sh0" onclick="buyT(0)"><div class="shr">+1/s</div><div class="shn">Basic Tapper</div><div class="shp">5,000 VK</div></div>
+    <div class="shc" id="sh1" onclick="buyT(1)"><div class="shr">+3/s</div><div class="shn">Speed Tapper</div><div class="shp">25,000 VK</div></div>
+  </div>
+  <div class="tier">⚔️ Veteran</div>
+  <div class="sgrid">
+    <div class="shc" id="sh2" onclick="buyT(2)"><div class="shr">+6/s</div><div class="shn">Veteran I</div><div class="shp">80,000 VK</div></div>
+    <div class="shc" id="sh3" onclick="buyT(3)"><div class="shr">+9/s</div><div class="shn">Veteran II</div><div class="shp">200,000 VK</div></div>
+  </div>
+  <div class="tier">🔥 Pro</div>
+  <div class="sgrid">
+    <div class="shc" id="sh4" onclick="buyT(4)"><div class="shr">+11/s</div><div class="shn">Pro I</div><div class="shp">500,000 VK</div></div>
+    <div class="shc" id="sh5" onclick="buyT(5)"><div class="shr">+14/s</div><div class="shn">Pro II</div><div class="shp">1.2M VK</div></div>
+  </div>
+  <div class="tier">👑 Legendary</div>
+  <div class="sgrid">
+    <div class="shc" id="sh6" onclick="buyT(6)"><div class="shr">+20/s</div><div class="shn">Legend I</div><div class="shp">3M VK</div></div>
+    <div class="shc" id="sh7" onclick="buyT(7)"><div class="shr">+25/s</div><div class="shn">Legend II</div><div class="shp">7M VK</div></div>
+  </div>
+  <div class="tier">😈 Evil Tap (💎 required)</div>
+  <div class="sgrid">
+    <div class="shc" id="sh8" onclick="buyT(8)"><div class="shr dr">+20/s</div><div class="shn">Evil Tap I</div><div class="shp">2,000 💎</div></div>
+    <div class="shc" id="sh9" onclick="buyT(9)"><div class="shr dr">+25/s</div><div class="shn">Evil Tap II</div><div class="shp">5,000 💎</div></div>
+  </div>
+  <div class="div"></div>
+  <div class="g tc">
+    <span class="botf">🤖</span>
+    <h3>Auto Miner Bot</h3>
+    <p class="sd" style="margin-bottom:8px;">Earns +1 VK/s while you're offline, up to 8 hours.</p>
+    <div style="font-size:.9rem;color:var(--gold);font-weight:900;margin-bottom:10px;">500,000 VK</div>
+    <button class="btnp fw" id="minerBtnShop" onclick="buyMiner()" style="max-width:270px;">BUY AUTO MINER</button>
+  </div>
+</div>
+
+<!-- FACTORY -->
+<div class="sec" id="pg-factory">
+  <h2>🏭 FACTORY</h2>
+  <p class="sd">Buy factories with diamonds, then activate separately. Run 24/7 once active.</p>
+  <div class="g gn" style="padding:10px 13px;margin-bottom:11px;">
+    <div style="font-size:.62rem;color:var(--text3);">COMBINED OUTPUT</div>
+    <div style="font-size:1.08rem;font-weight:900;color:var(--green);margin-top:3px;" id="facRate">+0 VK/s</div>
+  </div>
+  <div class="fac" id="fc0"><div class="femi">❄️</div><div class="fi"><div class="fn">Winter Industry</div><div class="fr">+15 VK/s active</div><div class="fc">Cost: 500 💎</div><div class="fs" id="fs0">Not purchased</div></div><div class="fbs"><button class="bs bb" id="fb0" onclick="buyF(0)">Buy</button><button class="bs ba" id="fa0" onclick="actF(0)" disabled>Activate</button></div></div>
+  <div class="fac" id="fc1"><div class="femi">🔥</div><div class="fi"><div class="fn">Hell Industry</div><div class="fr">+35 VK/s active</div><div class="fc">Cost: 10,000 💎</div><div class="fs" id="fs1">Not purchased</div></div><div class="fbs"><button class="bs bb" id="fb1" onclick="buyF(1)">Buy</button><button class="bs ba" id="fa1" onclick="actF(1)" disabled>Activate</button></div></div>
+  <div class="fac" id="fc2"><div class="femi">✨</div><div class="fi"><div class="fn">Stardust Industry</div><div class="fr">+22 VK/s active</div><div class="fc">Cost: 3,500 💎</div><div class="fs" id="fs2">Not purchased</div></div><div class="fbs"><button class="bs bb" id="fb2" onclick="buyF(2)">Buy</button><button class="bs ba" id="fa2" onclick="actF(2)" disabled>Activate</button></div></div>
+</div>
+
+<!-- DIAMONDS -->
+<div class="sec" id="pg-diamonds">
+  <h2>💎 DIAMONDS</h2>
+  <div class="g gd">
+    <div class="rbw" style="margin-bottom:5px;"><h3 style="margin:0;">⛏️ Mine</h3><span style="font-size:.65rem;color:var(--text3);">50,000 VK per mine</span></div>
+    <p class="sd">Random reward. Celestial Enigma guarantees max yield.</p>
+    <div style="text-align:center;font-size:.72rem;color:var(--text3);margin-bottom:10px;">VK: <span class="tg" id="mVK">0</span> &nbsp;|&nbsp; 💎: <span class="td" id="mDia">0</span></div>
+    <button class="mbtn" onclick="doMine()">⛏️ MINE DIAMONDS — 50,000 VK</button>
+    <div class="mres" id="mres"></div>
+  </div>
+  <div class="g">
+    <h3>💰 Diamonds → VK</h3><p class="sd">Convert diamonds into large VK sums.</p>
+    <div class="dpg">
+      <div class="dp" id="dp0" onclick="buyDP(0)"><div class="dpc">500 💎</div><div class="dpv">→ 100K VK</div></div>
+      <div class="dp" id="dp1" onclick="buyDP(1)"><div class="dpc">2,000 💎</div><div class="dpv">→ 900K VK</div></div>
+      <div class="dp" id="dp2" onclick="buyDP(2)"><div class="dpc">10,000 💎</div><div class="dpv">→ 8M VK</div></div>
+    </div>
+  </div>
+  <div class="g">
+    <h3>🪙 VK → Diamonds</h3><p class="sd">Convert VK coins into diamonds.</p>
+    <div class="dpg">
+      <div class="dp" id="vd0" onclick="buyVD(0)"><div class="dpc">100K VK</div><div class="dpv">→ 100 💎</div></div>
+      <div class="dp" id="vd1" onclick="buyVD(1)"><div class="dpc">500K VK</div><div class="dpv">→ 300 💎</div></div>
+      <div class="dp" id="vd2" onclick="buyVD(2)"><div class="dpc">5M VK</div><div class="dpv">→ 1,000 💎</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- DAILY -->
+<div class="sec" id="pg-daily">
+  <h2>🎁 DAILY REWARD</h2>
+  <div class="g gd tc">
+    <span style="font-size:2.9rem;display:block;margin:7px 0;">💎</span>
+    <h3>Daily Diamond Reward</h3>
+    <p class="sd">Claim 1 free diamond every 4 days.</p>
+    <div id="dailyInfo" style="font-size:.74rem;color:var(--text2);margin:6px 0;"></div>
+    <button class="btnp fw" id="claimBtn" onclick="claimDaily()" style="max-width:260px;margin-top:5px;">CLAIM 1 💎</button>
+    <div style="color:var(--red);font-size:.7rem;margin-top:6px;min-height:14px;" id="dailyLk"></div>
+  </div>
+  <div class="g">
+    <div class="rbw"><h3 style="margin:0;">📅 History</h3><span class="mono tg" style="font-weight:700;" id="dailyCnt">0</span></div>
+    <div class="div"></div>
+    <div style="font-size:.7rem;color:var(--text2);">Claim 5 times → <strong style="color:var(--gold);">Dedicated Collector</strong>. Login 20 times → <strong style="color:var(--gold);">Daily Regulars</strong>.</div>
+  </div>
+</div>
+
+<!-- MINER -->
+<div class="sec" id="pg-miner">
+  <h2>🤖 AUTO MINER</h2>
+  <div class="g tc">
+    <span class="botf">🤖</span>
+    <h3>Auto Miner Bot</h3>
+    <p class="sd">Earns +1 VK/s while tab is closed. Max 8 hours offline = 28,800 VK.</p>
+    <div id="minerPill" style="margin:7px 0;min-height:30px;"></div>
+    <div style="font-size:.9rem;color:var(--gold);font-weight:900;margin-bottom:10px;">500,000 VK</div>
+    <button class="btnp fw" id="minerBtn" onclick="buyMiner()" style="max-width:270px;">BUY AUTO MINER</button>
+  </div>
+  <div class="g"><h3>ℹ️ How it works</h3><div class="sd" style="margin:0;">When you leave, the bot tracks time. When you return it calculates offline seconds (max 8hr cap) and drops the VK into your wallet via a popup.</div></div>
+</div>
+
+<!-- BOOSTS -->
+<div class="sec" id="pg-boosts">
+  <h2>⚡ BOOSTS</h2>
+  <p class="sd">Temporary power-ups. Buy first, then activate when you want the effect.</p>
+  <div id="boostCon">
+    <div class="boc" id="booc0"><div class="bct"><div class="bcico">🚀</div><div class="bci"><div class="bcn">Speed Rush</div><div class="bcd">+5 VK per tap for 30 minutes</div><div class="bcp">50,000 VK</div></div></div><div class="bom"><div class="bomf" id="bm0" style="width:0%"></div></div><div class="bcbts" id="bb0"></div><div class="bstat" id="bs0"></div></div>
+    <div class="boc" id="booc1"><div class="bct"><div class="bcico">🌧️</div><div class="bci"><div class="bcn">Diamond Rain</div><div class="bcd">+2 diamonds every 60 seconds for 1 hour</div><div class="bcp">150,000 VK</div></div></div><div class="bom"><div class="bomf" id="bm1" style="width:0%"></div></div><div class="bcbts" id="bb1"></div><div class="bstat" id="bs1"></div></div>
+    <div class="boc" id="booc2"><div class="bct"><div class="bcico">⚡</div><div class="bci"><div class="bcn">VK Surge</div><div class="bcd">+50 VK/s auto bonus for 20 minutes</div><div class="bcp">300,000 VK</div></div></div><div class="bom"><div class="bomf" id="bm2" style="width:0%"></div></div><div class="bcbts" id="bb2"></div><div class="bstat" id="bs2"></div></div>
+    <div class="boc" id="booc3"><div class="bct"><div class="bcico">💛</div><div class="bci"><div class="bcn">Gold Rush</div><div class="bcd">Doubles all auto-tap earnings for 15 minutes</div><div class="bcp">500,000 VK</div></div></div><div class="bom"><div class="bomf" id="bm3" style="width:0%"></div></div><div class="bcbts" id="bb3"></div><div class="bstat" id="bs3"></div></div>
+  </div>
+</div>
+
+<!-- ENIGMA -->
+<div class="sec" id="pg-enigma">
+  <div class="ehdr"><span class="emask">🎭</span><div class="etitle">ENIGMA</div><div class="esub">HIDDEN POWER · PAY TO REVEAL</div></div>
+  <p class="sd" style="text-align:center;">Three ancient skills sealed behind 1,000,000 VK each.</p>
+  <div class="enc" id="en0"><div class="elk" id="el0"><span class="elik">🔒</span><div class="eln">SEALED SKILL I</div><div class="elh">A power that multiplies your every tap…</div><div class="elc">Unlock cost: 1,000,000 VK</div><button class="eubtn" id="eu0" onclick="unlockE(0)">PAY TO REVEAL</button></div><div class="erb" id="er0" style="display:none;"><div class="ert"><div class="erico">🛡️</div><div class="eri"><div class="ern">BUFF CONTROL</div><div class="erd">+2 VK per tap. Active until you deactivate it.</div><div class="ertm ton" id="et0"></div></div></div><div class="erbs" id="ebs0"></div></div></div>
+  <div class="enc" id="en1"><div class="elk" id="el1"><span class="elik">🔒</span><div class="eln">SEALED SKILL II</div><div class="elh">A cosmic influence over the mines…</div><div class="elc">Unlock cost: 1,000,000 VK</div><button class="eubtn" id="eu1" onclick="unlockE(1)">PAY TO REVEAL</button></div><div class="erb" id="er1" style="display:none;"><div class="ert"><div class="erico">🌌</div><div class="eri"><div class="ern">CELESTIAL</div><div class="erd">Always mine 100 💎 per tap. Active until deactivated.</div><div class="ertm ton" id="et1"></div></div></div><div class="erbs" id="ebs1"></div></div></div>
+  <div class="enc" id="en2"><div class="elk" id="el2"><span class="elik">🔒</span><div class="eln">SEALED SKILL III</div><div class="elh">A magnetic force that draws experience…</div><div class="elc">Unlock cost: 1,000,000 VK</div><button class="eubtn" id="eu2" onclick="unlockE(2)">PAY TO REVEAL</button></div><div class="erb" id="er2" style="display:none;"><div class="ert"><div class="erico">🧲</div><div class="eri"><div class="ern">XP MAGNET</div><div class="erd">+10% VK per tap for 20 seconds. 50-hour cooldown.</div><div class="ertm" id="et2"></div></div></div><div class="erbs" id="ebs2"></div></div></div>
+</div>
+
+<!-- ACHIEVEMENTS -->
+<div class="sec" id="pg-ach">
+  <h2>🏅 ACHIEVEMENTS</h2>
+  <div class="rbw" style="margin-bottom:10px;"><p class="sd" style="margin:0;">Complete tasks to unlock badges.</p><span style="font-size:.66rem;color:var(--text3);" id="achProg">0/40</span></div>
+  <div class="achg" id="achGrid"></div>
+</div>
+
+<!-- RANKS -->
+<div class="sec" id="pg-ranks">
+  <h2>🏆 RANKS</h2>
+  <p class="sd">Rank updates automatically based on total VK coins accumulated.</p>
+  <div id="rankList"></div>
+</div>
+
+<!-- GAME HUB -->
+<div class="sec" id="pg-gamehub"></div>
+
+<!-- VICTOR BUILD -->
+<div class="sec" id="pg-mall">
+</div>
+
+<!-- STAKE -->
+<div class="sec" id="pg-stake">
+</div>
+
+<!-- PLAYER -->
+<div class="sec" id="pg-player"><div id="playerInfoContent" style="min-height:200px;display:flex;align-items:center;justify-content:center;"><div style="color:var(--text3);font-size:0.8rem;">Loading...</div></div></div>
+
+<!-- ABOUT -->
+<div class="sec" id="pg-about"></div>
+
+<!-- SERVERS -->
+<div class="sec" id="pg-servers"></div>
+
+<!-- CONTACT -->
+<div class="sec" id="pg-contact">
+  <h2>📞 CONTACT</h2>
+  <div class="g tc">
+    <div style="font-size:2.5rem;margin-bottom:8px;">💬</div>
+    <h3>Get in Touch</h3>
+    <p class="sd">Cash out, questions, or support — chat on WhatsApp.</p>
+    <a class="wab" href="https://wa.me/2348067630531" target="_blank" rel="noopener">📱 Chat on WhatsApp</a>
+    <div style="margin-top:10px;font-size:.7rem;color:var(--text3);">VicBot · +234 806 763 0531</div>
+  </div>
+</div>
+
+    </div><!-- /con -->
+  </div><!-- /body -->
+  <footer>© 2024 VICTOR COIN &nbsp;·&nbsp; Victor_vk &nbsp;·&nbsp; ALL RIGHTS RESERVED</footer>
+</div><!-- /app -->
+
+<!-- =======================================
+     EXPLORE OVERLAY
+======================================= -->
+<div id="exploreOverlay">
+  <div class="exbar">
+    <div class="extitle">🗺️ EXPLORE</div>
+    <div class="exnav">
+      <button class="exnav-btn exnav-on" id="exnav-explore"    onclick="exNav('explore')">🗺️ Map</button>
+      <button class="exnav-btn"          id="exnav-vault"      onclick="exNav('vault')">🏛️ Vault</button>
+      <button class="exnav-btn"          id="exnav-artifacts"  onclick="exNav('artifacts')">✨ Artifacts</button>
+      <button class="exnav-btn"          id="exnav-build"      onclick="exNav('build')">🏠 Build</button>
+      <button class="exnav-btn"          id="exnav-buildranks" onclick="exNav('buildranks')">🏆 Ranks</button>
+    </div>
+    <button class="exnav-exit" onclick="closeExplore()">✕ Exit</button>
+  </div>
+  <div class="exbody">
+    <div class="expg" id="expg-explore"    style="display:block;">
+      <div class="exinfo">
+        <div><div class="exinfo-cost" id="exCost">5,000 VK</div><div style="font-size:0.6rem;color:var(--text3);margin-top:2px;">Current exploration cost</div></div>
+        <div style="text-align:right;"><div class="exinfo-count" id="exCount">0 total explorations</div><div style="font-size:0.6rem;color:var(--text3);margin-top:2px;">Cost rises each time</div></div>
+      </div>
+      <div class="exmapwrap"><div id="exMap"></div></div>
+      <div id="exLocInfo"><div class="exhint">👆 Tap a location on the map to explore it</div></div>
+    </div>
+    <div class="expg" id="expg-vault"      style="display:none;"></div>
+    <div class="expg" id="expg-artifacts"  style="display:none;"></div>
+    <div class="expg" id="expg-build"      style="display:none;"></div>
+    <div class="expg" id="expg-buildranks" style="display:none;"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ===============================
+     SCRIPTS — ORDER MATTERS
+=============================== -->
+<!-- Firebase SDK (must load first) -->
+<script src="js/state.js"></script>
+<script src="js/util.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="firebase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/boosts.js"></script>
+<script src="js/enigma.js"></script>
+<script src="js/explore.js"></script>
+<script src="js/social.js"></script>
+<script src="js/mall.js"></script>
+<script src="js/stake.js"></script>
+<script src="js/payment.js"></script>
+<script src="js/cosmetics.js"></script>
+<script src="js/badges.js"></script>
+<script src="js/quests.js"></script>
+<script src="js/servers.js"></script>
+<script src="js/nametemplates.js"></script>
+<script src="js/vault.js"></script>
+<script src="js/status.js"></script>
+<script src="js/pwa.js"></script>
+<script src="js/game.js"></script>
+<script src="js/trivia.js"></script>
+<script src="js/tictactoe.js"></script>
+<script src="js/emojiflip.js"></script>
+<script src="js/hangman.js"></script>
+<script src="js/squidgame.js"></script>
+<script src="js/karaoke.js"></script>
+<script src="js/main.js"></script>
+
+<!-- Login page particle canvas -->
+<script>
+(function(){
+  var cv=document.getElementById('loginCanvas');
+  if(!cv) return;
+  var cx=cv.getContext('2d');
+  var W,H,pts=[];
+
+  function resize(){W=cv.width=window.innerWidth;H=cv.height=window.innerHeight;}
+  window.addEventListener('resize',resize);resize();
+
+  // Golden dust particles — Hollow Knight style
+  for(var i=0;i<160;i++){
+    pts.push({
+      x:Math.random()*W, y:Math.random()*H,
+      r:0.3+Math.random()*2,
+      vx:(Math.random()-0.5)*0.3,
+      vy:-0.08-Math.random()*0.35,
+      ph:Math.random()*6.28,
+      spd:0.008+Math.random()*0.02,
+      hue: Math.random()<0.7
+        ? (35+Math.random()*25)   // gold/amber
+        : (200+Math.random()*40)  // rare blue
+    });
+  }
+
+  (function draw(){
+    requestAnimationFrame(draw);
+    cx.clearRect(0,0,W,H);
+    pts.forEach(function(p){
+      p.ph+=p.spd; p.x+=p.vx; p.y+=p.vy;
+      if(p.y<-10){p.y=H+5;p.x=Math.random()*W;}
+      if(p.x<-10) p.x=W+5;
+      if(p.x>W+10) p.x=-5;
+      var op=0.15+0.7*Math.abs(Math.sin(p.ph));
+      // Shimmer: flash white on peak
+      var shimmer=Math.sin(p.ph*5);
+      if(shimmer>0.8){
+        cx.fillStyle='rgba(255,255,240,'+op+')';
+      } else {
+        cx.fillStyle='hsla('+p.hue+',85%,68%,'+op+')';
+      }
+      cx.beginPath();cx.arc(p.x,p.y,p.r,0,6.28);cx.fill();
+    });
+  })();
+})();
+</script>
+
+</body>
+</html>
